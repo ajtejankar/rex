@@ -86,6 +86,11 @@ rules.set('|', function(state) {
       operand: {left: state.ast.pop()}
     });
 
+    state.queue.push({
+      ast: state.ast,
+      index: state.ast.length - 1
+    });
+
     return true;
   }
 });
@@ -107,7 +112,7 @@ function defaultRule(state, char) {
 }
 
 export default function parse(input) {
-  let state = { name: 'START', ast: [], stack: [] };
+  let state = { name: 'START', ast: [], stack: [], queue: [] };
   let execDefault;
 
   for (let i = 0; i < input.length; i++) {
@@ -127,6 +132,17 @@ export default function parse(input) {
 
   if (state.name !== 'START') {
     throw new Error(`Parsing Error`);
+  }
+
+  for (let item of state.queue) {
+    let ast = item.ast;
+    let index = item.index;
+
+    ast[index].operand.right = ast[index + 1];
+  }
+
+  for (let i = 0; i < state.queue.length; i++) {
+    state.ast.splice(state.queue[i].index + 1 - i, 1);
   }
 
   return state.ast;

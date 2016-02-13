@@ -76,7 +76,7 @@ describe('Regular expression parser', () => {
     assert.deepEqual(parse(input), output);
   });
 
-  it('should handle basic cases of binary operators', () => {
+  it('should handle binary operators', () => {
     let input = 'ab[cd]|ef[^gh]';
     let output = [{
       operator: 'char',
@@ -107,29 +107,38 @@ describe('Regular expression parser', () => {
     assert.deepEqual(parse(input), output);
   });
 
-  it('should handle sequential binary operators', () => {
-    let input = 'a|[bc]|[^de]';
+  it('should handle complex combination of operators', () => {
+    let input = 'a?|[bc\\]]|[^de]+[\\^]\\+\\?';
     let output = [{
       operator: 'leftOrRight',
       operand: {
         left: {
+          operator: 'zeroOrOne',
+          operand: { operator: 'char', operand: 'a' }
+        },
+        right: {
           operator: 'leftOrRight',
           operand: {
             left: {
-              operator: 'char',
-              operand: 'a'
+              operator: 'klass',
+              operand: 'bc]'
             },
             right: {
-              operator: 'klass',
-              operand: 'bc'
+              operator: 'oneOrMore',
+              operand: { operator: 'iKlass', operand: 'de' }
             }
           }
         },
-        right: {
-          operator: 'iKlass',
-          operand: 'de'
-        }
       }
+    }, {
+      operator: 'klass',
+      operand: '^'
+    }, {
+      operator: 'char',
+      operand: '+'
+    }, {
+      operator: 'char',
+      operand: '?'
     }];
 
     assert.deepEqual(parse(input), output);

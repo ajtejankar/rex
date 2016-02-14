@@ -142,7 +142,7 @@ export default function parse(input) {
   }
 
   for (let i = 0; i < state.queue.length; i++) {
-    state.ast.splice(state.queue[i].index + 1 - i, 1);
+    state.queue[i].ast.splice(state.queue[i].index + 1 - i, 1);
   }
 
   return state.ast;

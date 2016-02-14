@@ -143,4 +143,69 @@ describe('Regular expression parser', () => {
 
     assert.deepEqual(parse(input), output);
   });
+
+  it('should handle basic grouping of sub-expressions', () => {
+    let input = 'ab[cd](ef[^gh])+[^ij]';
+    let output = [{
+      operator: 'char',
+      operand: 'a'
+    }, {
+      operator: 'char',
+      operand: 'b'
+    }, {
+      operator: 'klass',
+      operand: 'cd'
+    }, {
+      operator: 'oneOrMore',
+      operand: [{
+        operator: 'char',
+        operand: 'e'
+      }, {
+        operator: 'char',
+        operand: 'f'
+      }, {
+        operator: 'iKlass',
+        operand: 'gh'
+      }]
+    }, {
+      operator: 'iKlass',
+      operand: 'ij'
+    }];
+
+    assert.deepEqual(parse(input), output);
+  });
+
+  it('should handle complex grouping of sub-expressions', () => {
+    let input = '(ab[cd])|(ef[^gh])+';
+    let output = [{
+      operator: 'leftOrRight',
+      operand: {
+        left: [{
+          operator: 'char',
+          operand: 'a'
+        }, {
+          operator: 'char',
+          operand: 'b'
+        }, {
+          operator: 'klass',
+          operand: 'cd'
+        }],
+        right: {
+          operator: 'oneOrMore',
+          operand: [{
+            operator: 'char',
+            operand: 'e'
+          }, {
+            operator: 'char',
+            operand: 'f'
+          }, {
+            operator: 'iKlass',
+            operand: 'gh'
+          }]
+        }
+      }
+    }];
+
+    assert.deepEqual(parse(input), output);
+  });
 });

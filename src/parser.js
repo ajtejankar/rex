@@ -1,3 +1,6 @@
+// TODO: Error handling. Empty regular expressions.
+// TODO: Error handling. Empty operands to unary operators.
+
 let rules = new Map();
 
 rules.set('(', function(state) {

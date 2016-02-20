@@ -4,7 +4,6 @@ export default class Engine {
     this.current = 0;
     this.matched = '';
     this.state = 0;
-    this.currentState = 0;
 
     if (!ast || !ast.length) {
       this.state = 1;
@@ -20,39 +19,48 @@ export default class Engine {
   }
 
   match(char) {
-    // TODO: queue may not always be present
-    let queue = this.queue;
-
     if (this.state === 1 || this.state === -1) return this.state;
 
-    // handle empty and already matched regular expressions
-    while(this.current < queue.length && queue[this.current].state === 1) {
+    while (!char && this.current < this.queue.length) {
+      let matcher = this.queue[this.current];
+
+      this.state = matcher.match();
+
+      if (this.state !== 1) return (this.state = -1);
+
+      this.matched += matcher.matched;
       this.current++;
     }
 
-    if (this.current === queue.length) {
-      return (this.state = this.currentState !== 1 ? -1 : 1);
+    while (char && this.current < this.queue.length) {
+      let matcher = this.queue[this.current];
+
+      if (matcher.state === -1) return (this.state = -1);
+
+      if (matcher.state === 0 || matcher.state === 2 || matcher.state === 3) {
+        this.state = matcher.match(char);
+
+        if (matcher.state === 1) {
+          this.current++;
+          this.matched += matcher.matched;
+        }
+
+        return this.state;
+      }
+
+      if (matcher.state === 1) this.matched += matcher.matched;
+
+      this.current++;
     }
 
-    let matcher = queue[this.current];
-    this.currentState = matcher.match(char);
-
-    if (this.currentState === -1) {
-      return (this.state = -1);
-    } else if (this.currentState === 1) {
-      this.matched += matcher.matched;
-    }
-
-    return (this.state = 2);
+    return (this.state = this.queue[this.current - 1].state);
   }
 
   reset() {
     this.current = 0;
     this.matched = '';
     this.state = 0;
-    this.currentState = 0;
 
-    // TODO: queue may not always be present
     for (let i = 0; i < this.queue.length; i++) {
       this.queue[i].reset();
     }
@@ -114,44 +122,46 @@ class IKlass extends Primitive {
 class UnaryComplex {
   constructor(operand, next) {
     this.matched = '';
-    this.state = 0;
-    this.operandState = 0;
     this.operand = getMatcher(operand);
+    this.state = this.operand.state;
     this.next = next || new Engine();
-  }
-
-  handleStates(char) {
-    let nextState;
-    this.operandState = this.operand.match(char);
-
-    if (this.next.state === 1 || this.next.state === -1) {
-      nextState = this.next.state;
-    } else {
-      nextState = this.next.match(char);
-    }
-
-    return nextState;
   }
 
   reset() {
     this.matched = '';
-    this.state = 0;
-    this.operandState = 0;
+    this.operand.reset();
+    this.state = this.operand.state;
   }
 }
 
 class ZeroOrMore extends UnaryComplex {
   match(char) {
-    let nextState = this.handleStates(char);
+    let state;
 
-    if (this.operandState === -1 && nextState === -1) {
-      return (this.state = -1);
-    } else if (this.operandState === -1) {
+    if (!char) {
+      if (this.state === 2) state = this.operand.match();
+
+      if (state === 1) {
+        this.next.reset();
+        this.matched += this.operand.matched;
+      }
 
       return (this.state = 1);
-    } else if (this.operandState === 1) {
-      this.matched += this.operand.matched;
     }
+
+    state = this.operand.match(char);
+    let nextState = this.next.state;
+
+    if (nextState !== 1 || nextState !== -1) nextState = this.next.match(char);
+
+    if (state === 1) {
+      this.operand.reset();
+      this.matched += this.operand.matched;
+
+      return (this.state = 3);
+    }
+
+    if (state === -1) return (this.state = 1);
 
     return (this.state = 2);
   }
@@ -159,53 +169,74 @@ class ZeroOrMore extends UnaryComplex {
 
 class ZeroOrOne extends UnaryComplex {
   match(char) {
-    let nextState = this.handleStates(char);
+    let state;
 
-    if (this.operandState === -1 && nextState === -1) {
+    if (!char) {
+      if (this.state === 2) state = this.operand.match();
 
-      return (this.state = -1);
-    } else if (this.operandState === -1) {
-
-      return (this.state = 1);
-    } else if (this.operandState === 1) {
-      this.matched = this.operand.matched;
+      if (state === 1) {
+        this.next.reset();
+        this.matched += this.operand.matched;
+      }
 
       return (this.state = 1);
     }
+
+    state = this.operand.match(char);
+    let nextState = this.next.state;
+
+    if (nextState !== 1 || nextState !== -1) nextState = this.next.match(char);
+
+    if (state === 1) {
+      this.next.reset();
+      this.matched += this.operand.matched;
+
+      return (this.state = 1);
+    }
+
+    if (state === -1) return (this.state = 1);
 
     return (this.state = 2);
   }
 }
 
 class OneOrMore extends UnaryComplex {
-  constructor(operand, next) {
-    super(operand, next);
-    this.once = false;
-  }
-
   match(char) {
-    let nextState = this.handleStates(char);
+    let state;
 
-    if (this.operandState === -1 && nextState === -1) {
+    if (!char) {
+      if (this.state === 2) state = this.operand.match();
+
+      if (state === 1 || state === 3) {
+        this.next.reset();
+        this.matched += this.operand.matched;
+
+        return (this.state = 1);
+      }
+
+      if (this.state === 3) return (this.state = 1);
 
       return (this.state = -1);
-    } else if (this.operandState === -1 && !this.once) {
-
-      return (this.state = -1);
-    } else if (this.operandState === -1 && this.once) {
-
-      return (this.state = 1);
-    } else if (this.operandState === 1) {
-      this.once = true;
-      this.matched += this.operand.matched;
     }
 
-    return (this.state = 2);
-  }
+    state = this.operand.match(char);
+    let nextState = this.next.state;
 
-  reset() {
-    super.reset();
-    this.once = false;
+    if (nextState !== 1 || nextState !== -1) nextState = this.next.match(char);
+
+    if (state === 1) {
+      this.operand.reset();
+      this.next.reset();
+      this.matched += this.operand.matched;
+
+      return (this.state = 3);
+    }
+
+    if (state === -1 && this.once) return (this.state = 1);
+
+    if (state === -1) return (this.state = -1);
+
+    return (this.state = 2);
   }
 }
 

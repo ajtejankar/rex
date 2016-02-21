@@ -1,10 +1,12 @@
 let classes;
 
 function getMatcher(node) {
-  let operator = node.operator;
+  let operator = node.operator || 'engine';
+  let operand = node.operand || node;
+
   operator = operator[0].toUpperCase() + operator.slice(1);
 
-  return new classes[operator](node.operand);
+  return new classes[operator](operand);
 }
 
 export default class Engine {
@@ -27,42 +29,34 @@ export default class Engine {
 
     let i = 0;
 
-    for (let matcher, consumed; i < this.matchers.length; i++) {
+    for (let matcher; i < this.matchers.length; i++) {
       matcher = this.matchers[i];
-      consumed = false;
 
       if (matcher.state === 2 || matcher.state === 0) {
-        consumed = true;
         matcher.match(char);
+
+        if (matcher.state === -1) {
+          let k;
+
+          for (k = i; k >= 0; k--) {
+            if (this.matchers[k].state === 3) break;
+          }
+
+          if (k < 0) return (this.state = -1);
+
+          matcher.reset();
+        }
+
+        return (this.state = 2);
       }
 
       if (matcher.state === 3) {
-        if (!consumed) {
-          matcher.match(char);
-          continue;
-        }
-
-        return (this.state = 2);
+        matcher.match(char);
+        continue;
       }
 
       if (matcher.state === 1) {
-        if (!consumed) continue;
-
-        return (this.state = 2);
-      }
-
-      if (matcher.state === -1) {
-        let k;
-
-        for (k = i; k >= 0; k--) {
-          if (this.matchers[k].state === 3) break;
-        }
-
-        if (k < 0) return (this.state = -1);
-
-        matcher.reset();
-
-        if (consumed) return (this.state = 2);
+        continue;
       }
     }
 
@@ -184,16 +178,10 @@ class ZeroOrOne extends UnaryComplex {
       operandState = this.operand.match(char);
     }
 
-    if (operandState === 1) {
+    if (operandState === 1 || operandState === 3) {
       this.matched += this.operand.matched;
 
-      return (this.state = 1);
-    }
-
-    if (operandState === 3) {
-      this.matched += this.operand.matched;
-
-      return (this.state = 3);
+      return (this.state = operandState);
     }
 
     if (operandState === 2) {
@@ -244,6 +232,7 @@ class OneOrMore extends UnaryComplex {
     if ((this.state === 3 && operandState === 1) ||
         (this.state === 2 && operandState === 1) ||
         (this.state === 2 && operandState === 3)) {
+
       this.matched += this.operand.matched;
       this.operand.reset();
 

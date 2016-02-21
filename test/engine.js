@@ -35,6 +35,10 @@ describe('Regular expression engine', () => {
     output = getFirstMatch(engine, input);
     assert.equal(output, 'abcx');
 
+    input = 'abmcg';
+    output = getFirstMatch(engine, input);
+    assert.equal(output, '');
+
     input = 'amp';
     output = getFirstMatch(engine, input);
     assert.equal(output, '');
@@ -64,5 +68,15 @@ describe('Regular expression engine', () => {
     input = 'pef';
     output = getFirstMatch(engine, input);
     assert.equal(output, '');
+  });
+
+  it('should handle grouping of sub-expressions operators', () => {
+    let ast = parse('a(bc[de])+');
+    let engine = new Engine(ast);
+    let input, output;
+
+    input = 'abcdbce';
+    output = getFirstMatch(engine, input);
+    assert.equal(output, 'abcdbce');
   });
 });

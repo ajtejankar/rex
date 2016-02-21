@@ -3,10 +3,12 @@ import parse from '../src/parser';
 import { assert } from 'chai';
 
 function getFirstMatch(engine, input) {
-  let state, matched, start;
+  let state, start, engineInput, char;
 
   for (let i = 0; i <= input.length; i++) {
-    state = engine.match(input[i]);
+    char = input[i];
+    engineInput = { char: char, consumed: false };
+    state = engine.match(engineInput);
 
     if (start === undefined && (state === 2 || state === 3)) {
       start = i;
@@ -17,6 +19,8 @@ function getFirstMatch(engine, input) {
 
        return input.slice(start, i);
     }
+
+    if ((state === 2 || state === 3) && char && !engineInput.consumed) i--;
   }
 
   return '';

@@ -24,7 +24,7 @@ export default class Engine {
     this.state = 0;
   }
 
-  match(char) {
+  match(input) {
     if (this.state === 1 || this.state === -1) return this.state;
 
     let i = 0;
@@ -33,7 +33,7 @@ export default class Engine {
       matcher = this.matchers[i];
 
       if (matcher.state === 2 || matcher.state === 0) {
-        matcher.match(char);
+        matcher.match(input);
 
         if (matcher.state === -1) {
           let k;
@@ -51,7 +51,7 @@ export default class Engine {
       }
 
       if (matcher.state === 3) {
-        matcher.match(char);
+        matcher.match(input);
         continue;
       }
 
@@ -63,12 +63,12 @@ export default class Engine {
     i--;
 
     if ((this.matchers[i].state === 1) ||
-        (this.matchers[i].state === 3 && !char)) {
+        (this.matchers[i].state === 3 && !input.char)) {
 
        return (this.state = 1);
     }
 
-    if (this.matchers[i].state === 3 && char) {
+    if (this.matchers[i].state === 3 && input.char) {
       return (this.state = 3);
     }
   }
@@ -88,9 +88,12 @@ class Primitive {
     this.state = 0;
   }
 
-  match(char) {
+  match(input) {
+    let char = input.char;
+
     if (this._match(char)) {
       this.matched = char || '';
+      input.consumed = true;
       this.state = 1;
     } else {
       this.state = -1;
@@ -142,11 +145,11 @@ class ZeroOrMore extends UnaryComplex {
     return 3;
   }
 
-  match(char) {
+  match(input) {
     let operandState = this.operand.state;
 
     if (operandState === 0 || operandState === 2 || operandState === 3) {
-      operandState = this.operand.match(char);
+      operandState = this.operand.match(input);
     }
 
     if (operandState === 1 || operandState === 3) {
@@ -171,11 +174,11 @@ class ZeroOrOne extends UnaryComplex {
     return 3;
   }
 
-  match(char) {
+  match(input) {
     let operandState = this.operand.state;
 
     if (operandState === 0 || operandState === 2 || operandState === 3) {
-      operandState = this.operand.match(char);
+      operandState = this.operand.match(input);
     }
 
     if (operandState === 1 || operandState === 3) {
@@ -203,14 +206,14 @@ class OneOrMore extends UnaryComplex {
     return 3;
   }
 
-  match(char) {
+  match(input) {
     let operandState = this.operand.state;
 
     if ((this.state === 0 && operandState === 0) ||
         (this.state === 2 && operandState === 2)) {
 
       this.state = 2;
-      operandState = this.operand.match(char);
+      operandState = this.operand.match(input);
     }
 
     if ((this.state === 3 && operandState === 0) ||
@@ -218,7 +221,7 @@ class OneOrMore extends UnaryComplex {
         (this.state === 3 && operandState === 3)) {
 
       this.state = 3;
-      operandState = this.operand.match(char);
+      operandState = this.operand.match(input);
     }
 
     if (this.state === 2 && operandState === -1) {

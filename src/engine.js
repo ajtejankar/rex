@@ -1,110 +1,119 @@
 let classes;
 
-function getMatcher(node) {
-  let operator = node.operator || 'engine';
-  let operand = node.operand || node;
+class Matcher {
+  constructor() {
+    this.state = 0;
+    this.matched = '';
+    this.matchStart = null;
+    this.matchEnd = null;
+  }
 
-  operator = operator[0].toUpperCase() + operator.slice(1);
-
-  return new classes[operator](operand);
+  reset() {
+    this.state = 0;
+    this.matched = '';
+    this.matchStart = null;
+    this.matchEnd = null;
+  }
 }
 
-export default class Engine {
+export default class Engine extends Matcher {
   constructor(ast) {
-    this.matched = '';
+    super();
 
-    if (!ast || !ast.length) {
-      this.matchers = [];
-      this.state = 1;
+    if (!ast.length) ast.push({operator: 'char', operand: ''});
 
-      return;
-    }
+    this.used = [];
+    this.matchers = ast.map(node => {
+      if (node.operator && node.operand) {
+        return new classes[node.operator](node.operand);
+      }
 
-    this.matchers = ast.map(node => getMatcher(node));
-    this.state = 0;
+      return new Engine(node, true);
+    });
   }
 
   match(input) {
     if (this.state === 1 || this.state === -1) return this.state;
 
-    let i = 0;
+    let prevState, inputConsumed, foundExtra, i, matcher;
 
-    for (let matcher; i < this.matchers.length; i++) {
+    for (i = 0; i < this.matchers.length; i++) {
       matcher = this.matchers[i];
 
-      if (matcher.state === 2 || matcher.state === 0) {
-        matcher.match(input);
+      if (matcher.state === 1) continue;
 
-        if (matcher.state === -1) {
-          let k;
+      prevState = matcher.state;
+      inputConsumed = !matcher.extra;
+      matcher.match(input);
+      foundExtra = matcher.extra;
 
-          for (k = i; k >= 0; k--) {
-            if (this.matchers[k].state === 3) break;
-          }
+      if ((matcher.state === -1 || (matcher.state === 1 && matcher.reset)) &&
+          (foundExtra && prevState !== 0)) {
 
-          if (k < 0) return (this.state = -1);
-
-          matcher.reset();
-        }
-
-        return (this.state = 2);
-      }
-
-      if (matcher.state === 3) {
-        matcher.match(input);
+        matcher.reset();
+        i--;
         continue;
       }
 
-      if (matcher.state === 1) {
-        continue;
+      if (inputConsumed) break;
+    }
+
+    for (i = 0; i < this.matchers.length; i++) {
+      matcher = this.matchers[i];
+
+      if (matcher.state === 0) break;
+
+      if (this.state === 0) {
+        this.state = 2;
+        this.matchStart = input.index;
+      }
+
+      if (matcher.state === -1) {
+        this.state = -1;
+        this.matched = null;
+        this.matchEnd = input.index;
+        break;
+      }
+
+      if (matcher.state === 1 && !this.used[i]) {
+        this.matched += matcher.matched;
+        this.matchEnd = input.char ? input.index : input.index - 1;
+        this.used[i] = true;
       }
     }
 
-    i--;
-
-    if ((this.matchers[i].state === 1) ||
-        (this.matchers[i].state === 3 && !input.char)) {
-
-       return (this.state = 1);
-    }
-
-    if (this.matchers[i].state === 3 && input.char) {
-      return (this.state = 3);
-    }
-  }
-
-  reset() {
-    this.matched = '';
-    this.state = 0;
-
-    this.matchers.forEach(matcher => matcher.reset());
-  }
-}
-
-class Primitive {
-  constructor(operand) {
-    this.matched = '';
-    this.operand = operand;
-    this.state = 0;
-  }
-
-  match(input) {
-    let char = input.char;
-
-    if (this._match(char)) {
-      this.matched = char || '';
-      input.consumed = true;
+    if (i === this.matchers.length && this.matchers[i - 1].state === 1) {
       this.state = 1;
-    } else {
-      this.state = -1;
     }
 
     return this.state;
   }
 
   reset() {
-    this.state = 0;
-    this.matched = '';
+    super.reset();
+    this.used = [];
+    this.matchers.forEach(matcher => matcher.reset());
+  }
+}
+
+class Primitive extends Matcher {
+  constructor(operand) {
+    super();
+    this.operand = operand;
+  }
+
+  match(input) {
+    if (this._match(input.char)) {
+      this.matched = input.char || '';
+      this.state = 1;
+    } else {
+      this.state = -1;
+    }
+
+    this.matchStart = input.index;
+    this.matchEnd = input.index;
+
+    return this.state;
   }
 }
 
@@ -126,132 +135,130 @@ class IKlass extends Primitive {
   }
 }
 
-class UnaryComplex {
+class Unary extends Matcher {
   constructor(operand) {
-    this.matched = '';
-    this.operand = getMatcher(operand);
-    this.state = this._getInitialState(this.operand.state);
+    super();
+    this.extra = false;
+    this.reset = false;
+    this.operand = operand;
   }
 
   reset() {
-    this.matched = '';
+    super.reset();
+    this.extra = false;
+    this.reset = false;
     this.operand.reset();
-    this.state = this._getInitialState(this.operand.state);
   }
 }
 
-class ZeroOrMore extends UnaryComplex {
-  _getInitialState(operandState) {
-    return 3;
+class ZeroOrMore extends Unary {
+  constructor(operand) {
+    super(operand);
+    this.extra = true;
   }
 
   match(input) {
-    let operandState = this.operand.state;
-
-    if (operandState === 0 || operandState === 2 || operandState === 3) {
-      operandState = this.operand.match(input);
+    if (this.operand.state === 0 || this.operand.state === 2) {
+      this.operand.match(input);
     }
 
-    if (operandState === 1 || operandState === 3) {
-      this.matched += this.operand.matched;
-      this.operand.reset();
-
-      return (this.state = 3);
-    }
-
-    if (operandState === 2) {
-      return (this.state = 3);
-    }
-
-    if (operandState === -1) {
-      return (this.state = 1);
-    }
-  }
-}
-
-class ZeroOrOne extends UnaryComplex {
-  _getInitialState(operandState) {
-    return 3;
-  }
-
-  match(input) {
-    let operandState = this.operand.state;
-
-    if (operandState === 0 || operandState === 2 || operandState === 3) {
-      operandState = this.operand.match(input);
-    }
-
-    if (operandState === 1 || operandState === 3) {
-      this.matched += this.operand.matched;
-
-      return (this.state = operandState);
-    }
-
-    if (operandState === 2) {
-      return (this.state = 3);
-    }
-
-    if (operandState === -1) {
-      return (this.state = 1);
-    }
-  }
-}
-
-class OneOrMore extends UnaryComplex {
-  _getInitialState(operandState) {
-    if (operandState === 0) {
-      return 0;
-    }
-
-    return 3;
-  }
-
-  match(input) {
-    let operandState = this.operand.state;
-
-    if ((this.state === 0 && operandState === 0) ||
-        (this.state === 2 && operandState === 2)) {
-
+    if (this.state === 0) {
       this.state = 2;
-      operandState = this.operand.match(input);
+      this.matchStart = input.index;
     }
 
-    if ((this.state === 3 && operandState === 0) ||
-        (this.state === 3 && operandState === 2) ||
-        (this.state === 3 && operandState === 3)) {
-
-      this.state = 3;
-      operandState = this.operand.match(input);
+    if (this.operand.state === -1) {
+      this.reset = true;
+      this.state = 1;
     }
 
-    if (this.state === 2 && operandState === -1) {
-      return (this.state = -1);
-    }
-
-    if (this.state === 3 && operandState === -1) {
-      return (this.state = 1);
-    }
-
-    if ((this.state === 3 && operandState === 1) ||
-        (this.state === 2 && operandState === 1) ||
-        (this.state === 2 && operandState === 3)) {
-
+    else if (this.operand.state === 1) {
       this.matched += this.operand.matched;
+      this.matchEnd = input.char ? input.index : input.index - 1;
       this.operand.reset();
+    }
 
-      return (this.state = 3);
+    return this.state;
+  }
+
+  reset() {
+    super.reset();
+    this.extra = true;
+  }
+}
+
+class ZeroOrOne extends Unary {
+  constructor(operand) {
+    super(operand);
+    this.extra = true;
+  }
+
+  match(input) {
+    if (this.operand.state === 0 || this.operand.state === 2) {
+      this.operand.match(input);
+    }
+
+    if (this.state === 0) {
+      this.state = 2;
+      this.matchStart = input.index;
+    }
+
+    if (this.operand.state === -1) {
+      this.reset = true;
+      this.state = 1;
+    }
+
+    else if (this.operand.state === 1) {
+      this.reset = false;
+      this.state = 1;
+      this.matchEnd = input.char ? input.index : input.index - 1;
+      this.matched += this.operand.matched;
+    }
+
+    return this.state;
+  }
+
+  reset() {
+    super.reset();
+    this.extra = true;
+  }
+}
+
+class OneOrMore extends Unary {
+  match(input) {
+    if (this.operand.state === 0 || this.operand.state === 2) {
+      this.operand.match(input);
+    }
+
+    if (this.state === 0) {
+      this.state = 2;
+      this.matchStart = input.index;
+    }
+
+    if (this.operand.state === -1) {
+      if (this.state === 2 && this.extra) {
+        this.state = 1;
+        this.matchEnd = input.char ? input.index : input.index - 1;
+      }
+      else {
+        this.state = -1;
+      }
+    }
+
+    else if (this.operand.state === 1 && this.state === 2 && !this.extra) {
+      this.extra = true;
+      this.state = 1;
+      this.matchEnd = input.char ? input.index : input.index - 1;
+      this.matched += this.operand.matched;
     }
 
     return this.state;
   }
 }
 
+
 classes = {
-  Engine: Engine,
-  Char: Char,
-  Klass: Klass,
-  IKlass: IKlass,
-  ZeroOrMore: ZeroOrMore,
-  ZeroOrOne: ZeroOrOne,
-  OneOrMore: OneOrMore,
+  'char': Char,
+  'klass': Klass,
+  'iKlass': IKlass
 };

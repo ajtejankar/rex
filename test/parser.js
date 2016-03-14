@@ -15,7 +15,6 @@ describe('Regular expression parser', () => {
     assert.deepEqual(parse(input), output);
   });
 
-
   it('should handle character classes', () => {
     let input = 'ab[cd]';
     let output = [{

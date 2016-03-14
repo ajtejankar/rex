@@ -21,8 +21,8 @@ describe('Regular expression test api', () => {
   });
 
   it('should handle grouping of sub-expressions operators', () => {
-    let re = new Rex('a(bc[de])+');
+    let re = new Rex('a(bc*[de]?)+');
 
-    assert.equal(re.test('abcdbce'), true);
+    assert.equal(re.test('abcdbcebbc'), true);
   });
 });

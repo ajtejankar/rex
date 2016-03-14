@@ -15,7 +15,7 @@
     "mocha": "^2.4.5"
   },
   "scripts": {
-    "test": "node_modules/.bin/mocha --compilers js:babel-register && test/jsh.bash",
+    "test": "node_modules/.bin/mocha --compilers js:babel-register",
     "build": "node_modules/.bin/babel src -d lib"
   },
   "keywords": [

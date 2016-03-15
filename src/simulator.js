@@ -1,6 +1,6 @@
 export default class Simulator {
   constructor(start) {
-    this.listid = 1;
+    this.addedStates = new WeakMap();
     this.nlist = [];
     this.addState(start);
     this.clist = this.nlist;
@@ -8,13 +8,12 @@ export default class Simulator {
   }
 
   addState(state) {
-    if (!state || state.lastlist === this.listid) {
+    if (!state || this.addedStates.get(state)) {
       return;
     }
 
-    state.lastlist = this.listid;
+    this.addedStates.set(state, true);
 
-    // this is a split state
     if (state.split) {
       this.addState(state.out);
       this.addState(state.out1);
@@ -26,7 +25,7 @@ export default class Simulator {
   }
 
   match(char) {
-    this.listid++;
+    this.addedStates = new WeakMap();
     this.clist.forEach(state => {
       if (state.match(char)) {
         this.addState(state.out);

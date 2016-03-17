@@ -50,10 +50,13 @@ rules.set(']', function(state) {
 });
 
 rules.set('^', function(state) {
-  if (state.name === 'CLASS') {
+  let prevNode = state.ast[state.ast.length - 1];
+
+  // make sure that `^` comes immediately after `[`
+  if (state.name === 'CLASS' && !prevNode.operand.length) {
     // change the state to inverse class type
     state.name = 'I_CLASS';
-    state.ast[state.ast.length - 1].operator = 'iKlass';
+    prevNode.operator = 'iKlass';
 
     return true;
   }

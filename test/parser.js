@@ -16,7 +16,7 @@ describe('Regular expression parser', () => {
   });
 
   it('should handle character classes', () => {
-    let input = 'ab[cd]';
+    let input = 'ab[cd^+*]';
     let output = [{
       operator: 'char',
       operand: 'a'
@@ -25,14 +25,14 @@ describe('Regular expression parser', () => {
       operand: 'b'
     }, {
       operator: 'klass',
-      operand: 'cd'
+      operand: 'cd^+*'
     }];
 
     assert.deepEqual(parse(input), output);
   });
 
   it('should handle inverse character classes', () => {
-    let input = 'ab[cd][^ef]';
+    let input = 'ab[cd][^ef^]';
     let output = [{
       operator: 'char',
       operand: 'a'
@@ -44,7 +44,7 @@ describe('Regular expression parser', () => {
       operand: 'cd'
     }, {
       operator: 'iKlass',
-      operand: 'ef'
+      operand: 'ef^'
     }];
 
     assert.deepEqual(parse(input), output);

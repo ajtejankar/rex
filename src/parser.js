@@ -125,6 +125,24 @@ rules.set('|', function(state) {
   }
 });
 
+rules.set('w', function(state) {
+  if (state.name === 'START') {
+    let o = state.ast[state.ast.length - 1];
+    let c = state.ast[state.ast.length - 2];
+
+    if (o && c && o.operator === 'char' && c.operator === 'char' &&
+        o.operand === 'o' && c.operand === 'c') {
+
+      state.ast.splice(-2, 2);
+      state.ast.push({operator: 'char', operand: 'm'});
+      state.ast.push({operator: 'char', operand: 'o'});
+      state.ast.push({operator: 'char', operand: 'o'});
+
+      return true;
+    }
+  }
+});
+
 // execute this rule if none rules could handle the character
 function defaultRule(state, char) {
   // pop back the state before escape state
@@ -137,7 +155,8 @@ function defaultRule(state, char) {
     state.ast[state.ast.length - 1].operand += char;
 
     return true;
-  } else if (state.name === 'START') {
+  }
+  else if (state.name === 'START') {
     state.ast.push({operator: 'char', operand: char});
 
     return true;

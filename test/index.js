@@ -58,10 +58,16 @@ describe('Regular expression match api', () => {
   });
 
   it('should handle dot operator', () => {
-    let re = new Rex('xy.*(d.+f)|(p.?m)');
+    let re = new Rex('xy.*(d.+f)|(p.?m)w?');
 
     assert.equal(re.match('xypm'), 'xypm');
     assert.equal(re.match('xydddddef'), 'xydddddef');
-    assert.equal(re.match('xydddddefg'), 'xydddddef');
+    assert.equal(re.match('xydddddefwg'), 'xydddddefw');
+  });
+
+  it('should handle cow operator', () => {
+    let re = new Rex('a cow moos');
+
+    assert.equal(re.match('a moo moos'), 'a moo moos');
   });
 });

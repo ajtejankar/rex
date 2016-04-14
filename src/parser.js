@@ -49,6 +49,14 @@ rules.set(']', function(state) {
   }
 });
 
+rules.set('.', function(state) {
+  if (state.name === 'START') {
+    state.ast.push({operator: 'any', operand: null});
+
+    return true;
+  }
+});
+
 rules.set('^', function(state) {
   let prevNode = state.ast[state.ast.length - 1];
 

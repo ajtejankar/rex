@@ -28,6 +28,9 @@ class Primitive {
       // the character should not be found inside the operand
       return this.operand.indexOf(char) === -1;
     }
+    else if (this.type === 'any') {
+      return true;
+    }
   }
 }
 
@@ -78,6 +81,7 @@ export default function compile(ast, next) {
     // https://swtch.com/~rsc/regexp/fig15.png
     else if (node.operator === 'char' ||
         node.operator === 'klass' ||
+        node.operator === 'any' ||
         node.operator === 'iKlass') {
 
       next = new Primitive(next, node.operator, node.operand);

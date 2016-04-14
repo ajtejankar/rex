@@ -56,4 +56,12 @@ describe('Regular expression match api', () => {
     assert.equal(re.match('xpaabcdbce'), 'abcdbce');
     assert.equal(re.match('xpaaa'), null);
   });
+
+  it('should handle dot operator', () => {
+    let re = new Rex('xy.*(d.+f)|(p.?m)');
+
+    assert.equal(re.match('xypm'), 'xypm');
+    assert.equal(re.match('xydddddef'), 'xydddddef');
+    assert.equal(re.match('xydddddefg'), 'xydddddef');
+  });
 });
